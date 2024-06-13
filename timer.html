@@ -10,10 +10,9 @@
 </head>
 
 <body>
-     <header class="header">
+    <header class="header">
         <nav class="nav">
             <a href="#" class="nav-logo">MedStance</a>
-
             <ul class="nav-items">
                 <li class="nav-item">
                     <a href="index.html" class="nav-link">Home</a>
@@ -25,7 +24,6 @@
     </header>
 
     <div class="container">
-
         <form action="" id="jadwal" autocomplete="off">
             <div class="teks">
                 <p>Modify and Set Your Med-Schedule Here!</p>
@@ -55,14 +53,30 @@
                 <button id="jadwalkan" type="submit">Create Alarm</button>
             </div>
         </form>
+
+        <div class="alarm-list">
+            <h3>Existing Alarms</h3>
+            <table id="alarm-table">
+                <thead>
+                    <tr>
+                        <th>Reminder Name</th>
+                        <th>Time</th>
+                        <th>Pill Selections</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="alarm-list">
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <script type="module">
-         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getDatabase, ref, set, child, get, update} from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, set, child, get, update, remove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyAx7gQ7QVpawuz9FgpqT6bU0Wsz2hmhNsg",
+            apiKey: "AIzaSyAx7gQVpawuz9FgpqT6bU0Wsz2hmhNsg",
             authDomain: "crudmedlist-8b416.firebaseapp.com",
             databaseURL: "https://crudmedlist-8b416-default-rtdb.firebaseio.com",
             projectId: "crudmedlist-8b416",
@@ -74,7 +88,8 @@
         const app = initializeApp(firebaseConfig);
         const dbRef = getDatabase(app);
         const scheduleRef = ref(dbRef, 'schedules');
-        const medicineRef = ref(dbRef, 'meds');
+        const medsRef = ref(dbRef, 'meds');
+
         document.getElementById("jadwal").addEventListener("submit", async function (e) {
             e.preventDefault();
 
@@ -92,7 +107,6 @@
                 return;
             }
 
-
             const selectedMeds = Array.from(medChecked).map(input => input.value);
             const filledArray = Array(3).fill('0');
 
@@ -105,10 +119,8 @@
 
             const stringArray = '[' + filledArray.join(',') + ']';
 
-            // Kemudian simpan stringArray dalam Firebase
             await set(child(scheduleRef, `MS${selectedPill.slice(2)}`), stringArray);
 
-            // Simpan waktu dalam Firebase
             const tData = {};
             if (selectedPill === "MS1") {
                 tData.AH1 = selectedTime.split(":")[0];
@@ -121,16 +133,75 @@
                 tData.AM3 = selectedTime.split(":")[1];
             }
 
-            // Simpan data waktu ke dalam child node T
             await update(child(scheduleRef, 'T'), tData);
 
-            alert("Alarm berhasil di set");
+            alert("Alarm successfully set");
             document.getElementById("jadwal").reset();
+            loadAlarms();  // Refresh the list of alarms after adding a new one
         });
 
+        async function loadAlarms() {
+            const alarmList = document.getElementById("alarm-list");
+            alarmList.innerHTML = '';
+
+            const snapshot = await get(scheduleRef);
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                const timeData = data.T || {};
+                for (const key in data) {
+                    if (key !== 'T') {
+                        const pillName = key === "MS1" ? "Morning Pill" : key === "MS2" ? "Day Pill" : "Night Pill";
+                        const time = key === "MS1" ? `${timeData.AH1}:${timeData.AM1}` : key === "MS2" ? `${timeData.AH2}:${timeData.AM2}` : `${timeData.AH3}:${timeData.AM3}`;
+                        const pillSelections = data[key].replace(/\[|\]/g, '').replace(/0,/g, '').replace(/,0/g, '').replace(/0/g, '');
+                        
+                        // Fetch medication names from Firebase based on selected compartments
+                        const selectedMeds = JSON.parse(data[key]);
+                        const medNames = await fetchMedicationNames(selectedMeds);
+
+                        const li = document.createElement("tr");
+                        li.innerHTML = `
+                            <td>${pillName}</td>
+                            <td>${time}</td>
+                            <td>${medNames}</td>
+                            <td><button class="delete-button" data-key="${key}">Delete</button></td>
+                        `;
+                        alarmList.appendChild(li);
+                    }
+                }
+                document.querySelectorAll('.delete-button').forEach(button => {
+                    button.addEventListener('click', async function () {
+                        const key = this.getAttribute('data-key');
+                        if (confirm("Are you sure you want to delete this alarm?")) {
+                            await remove(child(scheduleRef, key));
+                            await update(child(scheduleRef, 'T'), {
+                                [`AH${key.slice(2)}`]: null,
+                                [`AM${key.slice(2)}`]: null
+                            });
+                            loadAlarms();  // Refresh the list after deletion
+                        }
+                    });
+                });
+            }
+        }
+
+        async function fetchMedicationNames(selectedMeds) {
+            const promises = selectedMeds.map(async med => {
+                const snapshot = await get(child(medsRef, `${med}/medicine`));
+                return snapshot.val();
+            });
+            const names = await Promise.all(promises);
+
+            // Filter out empty names and join with comma if more than one medication selected
+            const filteredNames = names.filter(name => name !== null && name.trim() !== '');
+
+            // Join names with comma only if there are multiple valid names
+            return filteredNames.length > 1 ? filteredNames.join(', ') : (filteredNames[0] || '');
+        }
+
+
+
+        loadAlarms();  // Load alarms when the page is loaded
     </script>
 </body>
 
 </html>
-
-
