@@ -5,6 +5,10 @@ This is the code for the website only. contains 3 web-page (home, timer, medicin
 This code has connected to realtime Database in Firebase and Firebase Authentication using mobitzt(Suwatchai K) Firebase Client library.
 
 Each Web-Page are consist of html, css, and js as one package. 
+
+
+
+
 note : index.html and style.css are for the home page
 
 # home
