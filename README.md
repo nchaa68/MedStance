@@ -4,6 +4,9 @@ This website is for the user Interface of Medical Assistance Device using IoT Te
 This is the code for the website only. contains 3 web-page (home, timer, medicine). 
 This code has connected to realtime Database in Firebase and Firebase Authentication using mobitzt(Suwatchai K) Firebase Client library.
 
+Each Web-Page are consist of html, css, and js as one package. 
+note : index.html and style.css are for the home page
+
 # home
 page for log-in, sign-up account for the user. only user that are registered in this website that can access the device to dispense the medicine in the Device. (has features of log-in, sign-up, forgot password, remember account)
 # timer
